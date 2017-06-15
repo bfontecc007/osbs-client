@@ -141,6 +141,22 @@ def graceful_chain_del(d, *args):
     except (IndexError, KeyError):
         pass
 
+<<<<<<< HEAD
+=======
+def has_ist(x):
+    if not dpath.util.search(x, '/spec/triggers'):
+        return False
+    triggers = dpath.get(x, '/spec/triggers')
+    for t in triggers:
+        if t.get('type', None) == 'ImageChange':
+            return True
+    return False
+
+def clean_triggers(orig, new):
+    if has_ist(orig) and not has_ist(new):
+        orig['spec']['triggers'] = [ t for t in orig['spec']['triggers']
+            if t.get('type', None) != 'ImageChange' ]
+>>>>>>> 11886c7... Test commit
 
 def buildconfig_update(orig, new, remove_nonexistent_keys=False):
     """Performs update of given `orig` BuildConfig with values from `new` BuildConfig.

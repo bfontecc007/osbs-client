@@ -20,7 +20,8 @@ from osbs.utils import (buildconfig_update,
                         git_repo_humanish_part_from_uri,
                         get_time_from_rfc3339, strip_registry_from_image,
                         TarWriter, TarReader, make_name_from_git,
-                        get_instance_token_file_name, Labels, sanitize_version)
+                        get_instance_token_file_name, Labels, sanitize_version,
+                        has_ist)
 from osbs.exceptions import OsbsException
 import osbs.kerberos_ccache
 
@@ -33,6 +34,75 @@ def test_buildconfig_update():
     y = {'a': 'A', 'strategy': {'b1': 'newB1', 'b3': 'B3', 'b11': {}}, 'c': 'C'}
     buildconfig_update(x, y)
     assert x == {'a': 'A', 'strategy': {'b1': 'newB1', 'b3': 'B3', 'b11': {}}, 'c': 'C', 'd': 'D'}
+
+
+def has_other_trigger(x):
+    if 'spec' not in x:
+        return False
+    if 'triggers' not in x['spec']:
+        return False
+    triggers = x['spec']['triggers']
+    if not triggers:
+        return False
+    for t in triggers:
+        if t.get('type', None) != 'ImageChange':
+            return True
+    return False
+
+
+def add_ist(x):
+    if 'triggers' not in x['spec']:
+        x['spec']['triggers'] = []
+    x['spec']['triggers'].append({
+        "type": "ImageChange",
+        "imageChange": {
+            "from": {
+                "kind": "ImageStreamTag",
+                "name": "foobar"
+            }
+        }
+    })
+
+
+def add_other(x):
+    if 'triggers' not in x['spec']:
+        x['spec']['triggers'] = []
+    x['spec']['triggers'].append({
+            "type": "Generic",
+            "generic": {
+                "secret": "secret101",
+                "allowEnv": True
+            }
+        }
+    )
+
+
+@pytest.mark.parametrize(('orig_ist', 'orig_other'), [
+    (True, False),
+    (False, True),
+    (True, True)
+])
+def test_trigger_removals(orig_ist, orig_other):
+    x = {'spec': {
+            'foo': 'bar'
+        }
+    }
+
+    y = {'spec': {
+            'baz': 'qux'
+        }
+    }
+
+    if orig_ist:
+        add_ist(x)
+    if orig_other:
+        add_other(x)
+
+    buildconfig_update(x, y)
+
+    if orig_other:
+        assert has_other_trigger(x)
+    assert not has_ist(x)
 
 
 @pytest.mark.parametrize(('uri', 'humanish'), [
