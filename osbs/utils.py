@@ -141,22 +141,23 @@ def graceful_chain_del(d, *args):
     except (IndexError, KeyError):
         pass
 
-<<<<<<< HEAD
-=======
-def has_ist(x):
-    if not dpath.util.search(x, '/spec/triggers'):
+
+def has_triggers(x):
+    if 'spec' not in x:
         return False
-    triggers = dpath.get(x, '/spec/triggers')
-    for t in triggers:
-        if t.get('type', None) == 'ImageChange':
-            return True
-    return False
+    if 'triggers' not in x['spec']:
+        return False
+    triggers = x['spec']['triggers']
+    if not triggers:
+        return False
+    return True
+
 
 def clean_triggers(orig, new):
-    if has_ist(orig) and not has_ist(new):
-        orig['spec']['triggers'] = [ t for t in orig['spec']['triggers']
-            if t.get('type', None) != 'ImageChange' ]
->>>>>>> 11886c7... Test commit
+    if not has_triggers(new) and has_triggers(orig):
+        orig['spec']['triggers'] = [t for t in orig['spec']['triggers']
+                                    if t.get('type', None) != 'ImageChange']
+
 
 def buildconfig_update(orig, new, remove_nonexistent_keys=False):
     """Performs update of given `orig` BuildConfig with values from `new` BuildConfig.
@@ -170,6 +171,7 @@ def buildconfig_update(orig, new, remove_nonexistent_keys=False):
       (see https://github.com/projectatomic/osbs-client/pull/273#issuecomment-148038314)
     """
     if isinstance(orig, dict) and isinstance(new, dict):
+        clean_triggers(orig, new)
         if remove_nonexistent_keys:
             missing = set(orig.keys()) - set(new.keys())
             for k in missing:
