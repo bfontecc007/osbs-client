@@ -143,14 +143,9 @@ def graceful_chain_del(d, *args):
 
 
 def has_triggers(x):
-    if 'spec' not in x:
-        return False
-    if 'triggers' not in x['spec']:
-        return False
-    triggers = x['spec']['triggers']
-    if not triggers:
-        return False
-    return True
+    if x.get('spec', {}).get('triggers'):
+        return True
+    return False
 
 
 def clean_triggers(orig, new):

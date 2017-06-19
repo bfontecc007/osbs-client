@@ -20,7 +20,8 @@ from osbs.utils import (buildconfig_update,
                         git_repo_humanish_part_from_uri,
                         get_time_from_rfc3339, strip_registry_from_image,
                         TarWriter, TarReader, make_name_from_git,
-                        get_instance_token_file_name, Labels, sanitize_version)
+                        get_instance_token_file_name, Labels, sanitize_version,
+                        has_triggers)
 from osbs.exceptions import OsbsException
 import osbs.kerberos_ccache
 
@@ -36,9 +37,7 @@ def test_buildconfig_update():
 
 
 def has_ist(x):
-    if 'spec' not in x:
-        return False
-    if 'triggers' not in x['spec']:
+    if not has_triggers(x):
         return False
     triggers = x['spec']['triggers']
     if not triggers:
@@ -50,9 +49,7 @@ def has_ist(x):
 
 
 def has_other_trigger(x):
-    if 'spec' not in x:
-        return False
-    if 'triggers' not in x['spec']:
+    if not has_triggers(x):
         return False
     triggers = x['spec']['triggers']
     if not triggers:
