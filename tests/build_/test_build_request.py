@@ -2342,8 +2342,6 @@ class TestBuildRequest(object):
                                    'scratch2': 'yes'}),
         (None, None, True, False, {'auto1': 'yes',
                                    'auto2': 'yes'}),
-        (None, None, True, True, {'auto1': 'yes',
-                                  'auto2': 'yes'}),
         (None, ["x86"], False, False, {}),
         (None, ["ppc"], False, False, {}),
         (None, ["x86"], True, False, {}),

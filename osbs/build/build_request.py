@@ -23,9 +23,11 @@ except ImportError:
 from osbs.build.manipulate import DockJsonManipulator
 from osbs.build.spec import BuildSpec
 from osbs.constants import (SECRETS_PATH, DEFAULT_OUTER_TEMPLATE, DEFAULT_INNER_TEMPLATE,
-                            DEFAULT_CUSTOMIZE_CONF, BUILD_TYPE_WORKER, BUILD_TYPE_ORCHESTRATOR)
+                            DEFAULT_CUSTOMIZE_CONF, BUILD_TYPE_WORKER, BUILD_TYPE_ORCHESTRATOR,
+                            ISOLATED_BUILD_FORMAT)
 from osbs.exceptions import OsbsException, OsbsValidationException
-from osbs.utils import git_repo_humanish_part_from_uri, sanitize_version, Labels
+from osbs.utils import (git_repo_humanish_part_from_uri, make_name_from_git, sanitize_version,
+                        Labels)
 from osbs import __version__ as client_version
 
 
@@ -103,10 +105,15 @@ class BuildRequest(object):
 
         # Here we cater to the koji "scratch" build type, this will disable
         # all plugins that might cause importing of data to koji
-        try:
-            self.scratch = kwargs.pop("scratch")
-        except KeyError:
-            pass
+        self.scratch = kwargs.pop('scratch', False)
+        # When true, it indicates build was automatically started by
+        # OpenShift via a trigger, for instance ImageChangeTrigger
+        self.is_auto = kwargs.pop('is_auto', False)
+        # An isolated build is meant to patch a certain release and not
+        # update transient tags in container registry
+        self.isolated = kwargs.pop('isolated', False)
+
+        self.validate_build_variation()
 
         self.base_image = kwargs.get('base_image')
         self.platform_node_selector = kwargs.get('platform_node_selector', {})
@@ -114,10 +121,17 @@ class BuildRequest(object):
         self.scratch_build_node_selector = kwargs.get('scratch_build_node_selector', {})
         self.explicit_build_node_selector = kwargs.get('explicit_build_node_selector', {})
         self.auto_build_node_selector = kwargs.get('auto_build_node_selector', {})
-        self.is_auto = kwargs.get('is_auto', False)
 
         logger.debug("setting params '%s' for %s", kwargs, self.spec)
         self.spec.set_params(**kwargs)
+
+    def validate_build_variation(self):
+        variations = (self.scratch, self.is_auto, self.isolated)
+        enabled_variations = list(filter(lambda x: x, variations))
+        if len(enabled_variations) > 1:
+            raise ValueError('Build variations are mutually exclusive. '
+                             'Must set either scratch, is_auto, isolated, or none. ')
+
 
     def set_resource_limits(self, cpu=None, memory=None, storage=None):
         if self._resource_limits is None:
@@ -572,6 +586,21 @@ class BuildRequest(object):
                                                  'tag_by_labels'):
                 self.dj.dock_json_set_arg('postbuild_plugins', 'tag_by_labels',
                                           'unique_tag_only', True)
+
+            self.set_label('scratch', 'true')
+
+    def adjust_for_isolated(self):
+        if not self.isolated:
+            return
+
+        if not self.spec.release.value:
+            raise RuntimeError('The release parameter is required for isolated builds.')
+
+        if not ISOLATED_BUILD_FORMAT.match(self.spec.release.value):
+            raise RuntimeError('For isolated builds, the release value must be in the format: {}'
+                               .format(ISOLATED_BUILD_FORMAT.pattern))
+
+        self.set_label('isolated', 'true')
 
     def adjust_for_custom_base_image(self):
         """
@@ -1192,7 +1221,7 @@ class BuildRequest(object):
         """Sets the Build/BuildConfig object name"""
         name = self.spec.name.value
 
-        if self.scratch:
+        if self.scratch or self.isolated:
             name = self.spec.image_tag.value
             platform = self.spec.platform.value
             # Platform name may contain characters not allowed by OpenShift.
@@ -1203,7 +1232,17 @@ class BuildRequest(object):
 
             _, salt, timestamp = name.rsplit('-', 2)
 
-            name = 'scratch-{0}-{1}'.format(salt, timestamp)
+            if self.scratch:
+                name = 'scratch-{0}-{1}'.format(salt, timestamp)
+            elif self.isolated:
+                # Maybe this doesn't belong here?
+                prefix = 'isolated'
+                # 64 is maximum length allowed by OpenShift
+                # 2 is the number of dashes that will be added
+                name_limit = 64 - len(timestamp) - 2
+                repo = make_name_from_git(self.spec.git_uri.value, self.spec.git_branch.value,
+                                          limit=name_limit)
+                name = '-'.join([prefix, repo, timestamp])
 
         # !IMPORTANT! can't be too long: https://github.com/openshift/origin/issues/733
         self.template['metadata']['name'] = name
@@ -1283,6 +1322,7 @@ class BuildRequest(object):
         self.adjust_for_repo_info()
         self.adjust_for_scratch()
         self.adjust_for_triggers()
+        self.adjust_for_isolated()
         self.adjust_for_custom_base_image()
 
         # Enable/disable plugins as needed for target registry API versions

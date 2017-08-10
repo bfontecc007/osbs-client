@@ -291,11 +291,17 @@ class OSBS(object):
             raise OsbsException(msg)
 
     def _create_scratch_build(self, build_request):
+        self._create_build_directly(build_request)
+
+    def _create_isolated_build(self, build_request):
+        self._create_build_directly(build_request,
+                                    unique=('git-repo-name', 'git-branch', 'isolated'))
+
+    def _create_build_directly(self, build_request, unique=None):
         logger.debug(build_request)
         build_json = build_request.render()
         build_json['kind'] = 'Build'
         build_json['spec']['serviceAccount'] = 'builder'
-        build_json['metadata']['labels']['scratch'] = 'true'
 
         builder_img = build_json['spec']['strategy']['customStrategy']['from']
         kind = builder_img['kind']
@@ -307,6 +313,12 @@ class OSBS(object):
             ref = response.json()['image']['dockerImageReference']
             builder_img['kind'] = 'DockerImage'
             builder_img['name'] = ref
+
+        if unique:
+            # TODO: Query for a running build that matches the unique labels given.
+            # Probably need to enhance list_builds to accept a "running" parameter
+            # to avoid duplication from cli/main.py; and also take a labels parameter.
+            pass
 
         return BuildResponse(self.os.create_build(build_json).json())
 
@@ -530,6 +542,8 @@ class OSBS(object):
         build_request.set_repo_info(repo_info)
         if build_request.scratch:
             response = self._create_scratch_build(build_request)
+        elif build_request.isolated:
+            response = self._create_isolated_build(build_request)
         else:
             response = self._create_build_config_and_build(build_request)
         logger.debug(response.json)
