@@ -1323,6 +1323,7 @@ class BuildRequest(object):
         self.adjust_for_scratch()
         self.adjust_for_triggers()
         self.adjust_for_isolated()
+        self.adjust_for_triggers()
         self.adjust_for_custom_base_image()
 
         # Enable/disable plugins as needed for target registry API versions
