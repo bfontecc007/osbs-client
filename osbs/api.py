@@ -331,10 +331,14 @@ class OSBS(object):
             builder_img['name'] = ref
 
         if unique:
-            # TODO: Query for a running build that matches the unique labels given.
+            # Query for a running build that matches the unique labels given.
             # Probably need to enhance list_builds to accept a "running" parameter
             # to avoid duplication from cli/main.py; and also take a labels parameter.
-            pass
+            unique_labels = {}
+            for u in unique:
+                unique_labels[u] = build_json['metadata']['labels'][u]
+            if len(self.list_builds(running=True, labels=unique_labels)):
+                raise Exception('Matching build already running')
 
         return BuildResponse(self.os.create_build(build_json).json())
 
