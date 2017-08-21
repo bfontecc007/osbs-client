@@ -130,6 +130,7 @@ class OSBS(object):
 
         response = self.os.list_builds(field_selector=field_selector,
                                        koji_task_id=koji_task_id)
+        # check if response?
         serialized_response = response.json()
         build_list = []
         for build in serialized_response["items"]:
@@ -462,6 +463,7 @@ class OSBS(object):
                               koji_upload_dir=None,
                               is_auto=False,
                               koji_parent_build=None,
+                              isolated=None,
                               **kwargs):
         repo_info = utils.get_repo_info(git_uri, git_ref, git_branch=git_branch)
         df_parser = repo_info.dockerfile_parser
@@ -557,6 +559,7 @@ class OSBS(object):
             koji_upload_dir=koji_upload_dir,
             platform_descriptors=self.build_conf.get_platform_descriptors(),
             koji_parent_build=koji_parent_build,
+            isolated=isolated,
         )
         build_request.set_openshift_required_version(self.os_conf.get_openshift_required_version())
         build_request.set_repo_info(repo_info)
