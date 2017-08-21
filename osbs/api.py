@@ -109,8 +109,17 @@ class OSBS(object):
                             namespace=self.os_conf.get_namespace())
         self._bm = None
 
+    def _has_each_label(self, labels_needle, labels_haystack):
+        for (k, v) in labels_needle.iteritems():
+            if k not in labels_haystack:
+                return False
+            if labels_haystack[k] != v:
+                return False
+        return True
+
     @osbsapi
-    def list_builds(self, field_selector=None, koji_task_id=None):
+    def list_builds(self, field_selector=None, koji_task_id=None, running=None,
+                    labels=None):
         """
         List builds with matching fields
 
@@ -125,6 +134,13 @@ class OSBS(object):
         build_list = []
         for build in serialized_response["items"]:
             build_list.append(BuildResponse(build))
+        # is there a way to have openshift take a running or labels param?
+        # I see that it takes some kind of varargs and defaults...
+        if running is not None:
+            build_list = [x for x in build_list if x.is_running == running
+                          or x.is_pending == running]
+        if labels is not None:
+            build_list = [x for x in build_list if self._has_each_label(labels, x.get_labels())]
         return build_list
 
     def watch_builds(self, field_selector=None):
