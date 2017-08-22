@@ -308,11 +308,11 @@ class OSBS(object):
             raise OsbsException(msg)
 
     def _create_scratch_build(self, build_request):
-        self._create_build_directly(build_request)
+        return self._create_build_directly(build_request)
 
     def _create_isolated_build(self, build_request):
-        self._create_build_directly(build_request,
-                                    unique=('git-repo-name', 'git-branch', 'isolated'))
+        return self._create_build_directly(build_request,
+                                           unique=('git-repo-name', 'git-branch', 'isolated'))
 
     def _create_build_directly(self, build_request, unique=None):
         logger.debug(build_request)
@@ -569,6 +569,7 @@ class OSBS(object):
             response = self._create_isolated_build(build_request)
         else:
             response = self._create_build_config_and_build(build_request)
+        # TODO: if not response ...
         logger.debug(response.json)
         return response
 
