@@ -924,9 +924,13 @@ class BuildRequest(object):
         unique_tag = self.spec.image_tag.value.split(':')[-1]
         tag_suffixes = {'unique': [unique_tag], 'primary': []}
 
-        if self.spec.build_type.value == BUILD_TYPE_WORKER and not self.scratch:
+        # These changes are just temporary
+        # TODO: revert this code block to run on orchestrator
+        if self.spec.build_type.value == BUILD_TYPE_WORKER and not (self.scratch or self.isolated):
             tag_suffixes['primary'].extend(['latest', '{version}', '{version}-{release}'])
             tag_suffixes['primary'].extend(self._repo_info.additional_tags.tags)
+        elif self.spec.build_type.value == BUILD_TYPE_WORKER and self.isolated:
+            tag_suffixes['primary'].extend(['{version}-{release}'])
 
         self.dj.dock_json_set_arg(phase, plugin, 'tag_suffixes', tag_suffixes)
 
