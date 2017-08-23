@@ -28,7 +28,7 @@ from osbs.constants import (BUILD_RUNNING_STATES, WORKER_OUTER_TEMPLATE,
                             WORKER_INNER_TEMPLATE, WORKER_CUSTOMIZE_CONF,
                             ORCHESTRATOR_OUTER_TEMPLATE, ORCHESTRATOR_INNER_TEMPLATE,
                             ORCHESTRATOR_CUSTOMIZE_CONF, BUILD_TYPE_WORKER,
-                            BUILD_TYPE_ORCHESTRATOR)
+                            BUILD_TYPE_ORCHESTRATOR, BUILD_FINISHED_STATES)
 from osbs.core import Openshift
 from osbs.exceptions import OsbsException, OsbsValidationException, OsbsResponseException
 # import utils in this way, so that we can mock standalone functions with flexmock
@@ -128,6 +128,13 @@ class OSBS(object):
         :return: BuildResponse list
         """
 
+        if running:
+            running_fs = ",".join(["status!={status}".format(status=status.capitalize())
+                                  for status in BUILD_FINISHED_STATES])
+            if not field_selector:
+                field_selector = running_fs
+            else:
+                field_selector += running_fs
         response = self.os.list_builds(field_selector=field_selector,
                                        koji_task_id=koji_task_id)
         # check if response?
@@ -135,11 +142,7 @@ class OSBS(object):
         build_list = []
         for build in serialized_response["items"]:
             build_list.append(BuildResponse(build))
-        # is there a way to have openshift take a running or labels param?
-        # I see that it takes some kind of varargs and defaults...
-        if running is not None:
-            build_list = [x for x in build_list if x.is_running() == running
-                          or x.is_pending() == running]
+
         if labels is not None:
             build_list = [x for x in build_list if self._has_each_label(labels, x.get_labels())]
         return build_list
