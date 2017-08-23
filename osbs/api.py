@@ -138,8 +138,8 @@ class OSBS(object):
         # is there a way to have openshift take a running or labels param?
         # I see that it takes some kind of varargs and defaults...
         if running is not None:
-            build_list = [x for x in build_list if x.is_running == running
-                          or x.is_pending == running]
+            build_list = [x for x in build_list if x.is_running() == running
+                          or x.is_pending() == running]
         if labels is not None:
             build_list = [x for x in build_list if self._has_each_label(labels, x.get_labels())]
         return build_list
