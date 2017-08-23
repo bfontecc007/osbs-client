@@ -256,6 +256,7 @@ class BuildRequest(object):
             'yum_repourls': self.spec.yum_repourls.value,
             'arrangement_version': self.spec.arrangement_version.value,
             'koji_parent_build': self.spec.koji_parent_build.value,
+            'isolated': self.isolated,
         }
 
         self.dj.dock_json_set_arg(phase, plugin, 'platforms', self.spec.platforms.value)
