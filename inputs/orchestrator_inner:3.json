@@ -58,12 +58,6 @@
       "name": "fetch_worker_metadata",
       "args": {
       }
-    },
-    {
-      "name": "tag_from_config",
-      "args": {
-        "tag_suffixes": "{{TAG_SUFFIXES}}"
-      }
     }
   ],
   "prepublish_plugins": [],
